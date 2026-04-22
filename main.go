@@ -15,8 +15,10 @@ func main() {
 			ch <- v * v
 		}(i)
 	}
-	wg.Wait()
-	close(ch)
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
 	var sum int
 	for v := range ch {
 		sum += v
