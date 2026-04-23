@@ -1,19 +1,35 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
-	"sync"
 	"time"
 )
 
-// проблема: обычная мапа не потоконебезопасна, поэтому выявляется гонка данных
-// решение: использовать sync.Map или мьютексы
+func unpredictableFunc() int {
+	time.Sleep(time.Second * 2)
+	return 42
+}
+
+func predictableFunc() (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	ch := make(chan int)
+	go func() { ch <- unpredictableFunc() }()
+	select {
+	case v := <-ch:
+		return v, nil
+	case <-ctx.Done():
+		return 0, errors.New("timed out")
+	}
+}
+
 func main() {
-	x := sync.Map{}
-	go func() { x.Store(1, 2) }()
-	go func() { x.Store(1, 7) }()
-	go func() { x.Store(1, 10) }()
-	time.Sleep(100 * time.Millisecond)
-	v, _ := x.Load(1)
-	fmt.Println("x[1] =", v)
+	value, err := predictableFunc()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(value)
 }
