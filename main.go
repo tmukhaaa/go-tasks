@@ -3,25 +3,17 @@ package main
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
-// Проблема: горутины одновременно пытаются записать в счетчик, из за чего создается гонка данных
-// и некоторые итерации прожевываются
-// Решение: использование мьютаекса или атомика
+// проблема: обычная мапа не потоконебезопасна, поэтому выявляется гонка данных
+// решение: использовать sync.Map или мьютексы
 func main() {
-	var counter int64
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-	wg.Add(1000)
-	for i := 0; i < 1000; i++ {
-		go func() {
-			defer wg.Done()
-			mu.Lock()
-			//atomic.AddInt64(&counter, 1)
-			counter++
-			mu.Unlock()
-		}()
-	}
-	wg.Wait()
-	fmt.Println(counter)
+	x := sync.Map{}
+	go func() { x.Store(1, 2) }()
+	go func() { x.Store(1, 7) }()
+	go func() { x.Store(1, 10) }()
+	time.Sleep(100 * time.Millisecond)
+	v, _ := x.Load(1)
+	fmt.Println("x[1] =", v)
 }
