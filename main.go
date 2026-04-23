@@ -2,17 +2,26 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"sync"
 )
 
-// Проблема: есть писатель но нет читателя и запись в закрытый канал
-// Решение: использовать буферезированный канал или поставить писателя после читателя
+// Проблема: горутины одновременно пытаются записать в счетчик, из за чего создается гонка данных
+// и некоторые итерации прожевываются
+// Решение: использование мьютаекса или атомика
 func main() {
-	ch := make(chan bool)
-	//ch <- true
-	go func() {
-		fmt.Println(<-ch)
-	}()
-	ch <- true
-	time.Sleep(1 * time.Second)
+	var counter int64
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	wg.Add(1000)
+	for i := 0; i < 1000; i++ {
+		go func() {
+			defer wg.Done()
+			mu.Lock()
+			//atomic.AddInt64(&counter, 1)
+			counter++
+			mu.Unlock()
+		}()
+	}
+	wg.Wait()
+	fmt.Println(counter)
 }
